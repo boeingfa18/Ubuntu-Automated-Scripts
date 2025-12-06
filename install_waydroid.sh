@@ -1,9 +1,9 @@
 #!/bin/bash
 set -e
 
-echo "--------------------------------------------------"
-echo "   Waydroid Installer for Zorin OS 18 Pro"
-echo "--------------------------------------------------"
+echo "----------------------------------------------------------"
+echo "   Waydroid Installer for Ubuntu / Ubuntu Based Distro"
+echo "----------------------------------------------------------"
 
 # 1. Update system
 echo "[1/7] Updating system..."
