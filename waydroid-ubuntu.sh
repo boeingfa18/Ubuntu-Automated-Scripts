@@ -1,39 +1,61 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-echo "----------------------------------------------------------"
-echo "   Waydroid Installer for Ubuntu / Ubuntu Based Distro"
-echo "----------------------------------------------------------"
+# Waydroid installer for Ubuntu-based distributions
+# Includes privilege checks, optional GAPPS initialization, and service verification.
 
-# 1. Update system
-echo "[1/6] Updating system..."
-sudo apt update && sudo apt upgrade -y
+if [[ $(id -u) -ne 0 ]]; then
+  if ! command -v sudo >/dev/null 2>&1; then
+    echo "This script requires elevated privileges. Please run as root or install sudo." >&2
+    exit 1
+  fi
+  SUDO="sudo"
+else
+  SUDO=""
+fi
 
-# 2. Install dependencies
-echo "[2/6] Installing required packages..."
-sudo apt install -y curl ca-certificates lxc
+WITH_GAPPS="false"
+if [[ ${1-} == "--gapps" ]]; then
+  WITH_GAPPS="true"
+fi
 
-# 3. Add Waydroid repository
-echo "[3/6] Adding Waydroid repository..."
-curl -s https://repo.waydro.id | sudo bash
+log_step() {
+  echo "[${1}] $2"
+}
 
-# 4. Install Waydroid
-echo "[4/6] Installing Waydroid..."
-sudo apt install -y waydroid
+log_step 1 "Updating system packages..."
+${SUDO} apt update
+${SUDO} apt upgrade -y
 
-# 5. Initialize Waydroid
-echo "[5/6] Initializing Waydroid container..."
-sudo waydroid init
+log_step 2 "Installing required packages..."
+${SUDO} apt install -y curl ca-certificates lxc
 
-# If you want GAPPS automatically, replace above line with:
-# sudo waydroid init -s GAPPS
+log_step 3 "Adding Waydroid repository..."
+if ! curl -s https://repo.waydro.id | ${SUDO} bash; then
+  echo "Failed to add the Waydroid repository. Please check your network connection." >&2
+  exit 1
+fi
 
-# 6. Enable container service
-echo "[6/6] Enabling Waydroid container service..."
-sudo systemctl enable --now waydroid-container
+log_step 4 "Installing Waydroid..."
+${SUDO} apt update
+${SUDO} apt install -y waydroid
 
-echo "--------------------------------------------------"
-echo "  ✔ Waydroid installation finished!"
-echo "  To launch start a Waydrioid session: waydroid session start"
-echo "  To launch full Android UI: waydroid show-full-ui"
-echo "--------------------------------------------------"
+log_step 5 "Initializing Waydroid container..."
+if [[ ${WITH_GAPPS} == "true" ]]; then
+  ${SUDO} waydroid init -s GAPPS
+else
+  ${SUDO} waydroid init
+fi
+
+log_step 6 "Enabling Waydroid container service..."
+${SUDO} systemctl enable --now waydroid-container
+${SUDO} systemctl status --no-pager waydroid-container || true
+
+cat <<INFO
+--------------------------------------------------
+✔ Waydroid installation finished!
+To start a session: waydroid session start
+To launch the full Android UI: waydroid show-full-ui
+Re-run with '--gapps' to initialize with Google Apps support.
+--------------------------------------------------
+INFO
